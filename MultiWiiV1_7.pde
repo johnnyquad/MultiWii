@@ -1,4 +1,4 @@
-/*
+/* JDH mods 13 04 2011
 MultiWiiCopter by Alexandre Dubus
 www.multiwii.com
 April  2011     V1.7
@@ -17,13 +17,18 @@ April  2011     V1.7
 //#define MINTHROTTLE 1300 // for Turnigy Plush ESCs 10A
 #define MINTHROTTLE 1120 // for Super Simple ESCs 10A
 //#define MINTHROTTLE 1190
+#include "WProgram.h"
+#include "LEDs.h"
+
+HardwareSerial* SERIAL_PORT;// = &Serial;
+#define MINTHROTTLE 1110 // for Super Simple ESCs 10A
 
 /* The type of multicopter */
 //#define GIMBAL
 //#define BI
-#define TRI
+//#define TRI
 //#define QUADP
-//#define QUADX
+#define QUADX
 //#define Y4
 //#define Y6
 //#define HEX6
@@ -36,8 +41,8 @@ April  2011     V1.7
 #define I2C_SPEED 100000L     //100kHz normal mode, this value must be used for a genuine WMP
 //#define I2C_SPEED 400000L   //400kHz fast mode, it works only with some WMP clones
 
-#define PROMINI  //Arduino type
-//#define MEGA
+//#define PROMINI  //Arduino type
+#define MEGA
 
 //enable internal I2C pull ups
 #define INTERNAL_I2C_PULLUPS
@@ -55,7 +60,7 @@ April  2011     V1.7
 #define FAILSAFE                                  // Alex: comment this line if you want to deactivate the failsafe function
 #define FAILSAVE_DELAY     10                     // Guard time for failsafe activation after signal lost. 1 step = 0.1sec - 1sec in example
 #define FAILSAVE_OFF_DELAY 200                    // Time for Landing before motors stop in 0.1sec. 1 step = 0.1sec - 20sec in example
-#define FAILSAVE_THR0TTLE  (MINTHROTTLE + 200)    // Throttle level used for landing - may be relative to MINTHROTTLE - as in this case
+#define FAILSAVE_THR0TTLE  (1607) //+ 200)    // Throttle level used for landing - may be relative to MINTHROTTLE - as in this case
 
 
 /* The following lines apply only for a pitch/roll tilt stabilization system
@@ -64,11 +69,11 @@ April  2011     V1.7
 //#define SERVO_TILT
 #define TILT_PITCH_MIN    1020    //servo travel min, don't set it below 1020
 #define TILT_PITCH_MAX    2000    //servo travel max, max value=2000
-#define TILT_PITCH_MIDDLE 1500    //servo neutral value
+#define TILT_PITCH_MIDDLE 1200    //servo neutral value
 #define TILT_PITCH_PROP   10      //servo proportional (tied to angle) ; can be negative to invert movement
 #define TILT_ROLL_MIN     1020
 #define TILT_ROLL_MAX     2000
-#define TILT_ROLL_MIDDLE  1500
+#define TILT_ROLL_MIDDLE  1600
 #define TILT_ROLL_PROP    10
 
 /* I2C gyroscope */
@@ -85,7 +90,7 @@ April  2011     V1.7
 //#define BMP085
 
 /* I2C magnetometer */
-//#define HMC5843
+#define HMC5843
 //#define HMC5883
 
 /* ADC accelerometer */ // for 5DOF from sparkfun, uses analog PIN A1/A2/A3
@@ -101,7 +106,7 @@ April  2011     V1.7
 /* interleaving delay in micro seconds between 2 readings WMP/NK in a WMP+NK config
    if the ACC calibration time is very long (20 or 30s), try to increase this delay up to 4000
    it is relevent only for a conf with NK */
-#define INTERLEAVING_DELAY 3000
+#define INTERLEAVING_DELAY 3050
 
 /* for V BAT monitoring
    after the resistor divisor we should get [0V;5V]->[0;1023] on analog V_BATPIN
@@ -112,6 +117,26 @@ April  2011     V1.7
 #define VBATLEVEL1_3S 107 // 10,7V
 #define VBATLEVEL2_3S 103 // 10,3V
 #define VBATLEVEL3_3S 99  // 9.9V
+//*****************************************************************************************
+//MyStuff
+#define BATTERY_MONITOR_SCALE_FACTOR 0.012112382934443288241415192507804//0.012505010020 //+ use "P" to get batRaw a>d value then measure battery with DVM and do DVM/batRaw to get scale factor
+#define BAT_GOOD 10.8
+#define BAT_WARNING 10.6
+#define BAT_CRITICAL 10.4
+int batRaw;
+float batVoltage;
+String batString;
+int rfdetect;
+bool rf;
+
+volatile int16_t failsafeCnt = 0; //********************************line1363
+
+#define LED_PIN 22
+LEDs_FlashAll LEDs;
+
+
+#define WIRELESS_TELEMETRY_J_PIN 40
+//*****************************************************************************************
 
 /* when there is an error on I2C bus, we neutralize the values during a short time. expressed in microseconds
    it is relevent only for a conf with at least a WMP */
@@ -130,7 +155,7 @@ April  2011     V1.7
 
 /* In order to save space, it's possibile to desactivate the LCD configuration functions
    comment this line only if you don't plan to used a LCD */
-#define LCD_CONF
+//#define LCD_CONF
 
 /* to use Cat's whisker TEXTSTAR LCD, uncomment following line.
    Pleae note this display needs a full 4 wire connection to (+5V, Gnd, RXD, TXD )
@@ -143,7 +168,7 @@ April  2011     V1.7
 //#define MOTOR_STOP
 
 /* some radios have not a neutral point centered on 1500. can be changed here */
-#define MIDRC 1500
+#define MIDRC 1470
 
 /* experimental
    camera trigger function : activated via AUX1 UP, servo output=A2 */
@@ -170,6 +195,7 @@ April  2011     V1.7
 #define POWERPIN 12   // will be changed for MEGA in a future version
 #define V_BATPIN 3    // Analog PIN 3
 #define STABLEPIN     // will be defined for MEGA in a future version
+#define RF_DETPIN 4  // RF detection LED from Rx this is either 1.6v when there is RF or 0v
 
 #if defined(PROMINI)
   #define LEDPIN_PINMODE             pinMode (13, OUTPUT);
@@ -244,17 +270,17 @@ April  2011     V1.7
   #define DIGITAL_BI_LEFT_HIGH       PORTE |= 1<<6;
   #define DIGITAL_BI_LEFT_LOW        PORTE &= ~(1<<6);
   #define PPM_PIN_INTERRUPT          attachInterrupt(4, rxInt, RISING);  //PIN 19
-  #define MOTOR_ORDER                3,5,6,2,7,8   //for a quad+: rear,right,left,front   //+ for y6: 7:under right  8:under left
+  #define MOTOR_ORDER                9,10,11,3,7,8 //3,5,6,2,7,8   //for a quad+: rear,right,left,front   //+ for y6: 7:under right  8:under left
   #define DIGITAL_CAM_PINMODE        pinMode(A2,OUTPUT); // not the final choice
   #define DIGITAL_CAM_HIGH           PORTF |= 1<<2;
   #define DIGITAL_CAM_LOW            PORTF &= ~(1<<2);
   //RX PIN assignment inside the port //for PORTK
-  #define THROTTLEPIN                0  //PIN 62 =  PIN A8
-  #define ROLLPIN                    1  //PIN 63 =  PIN A9
-  #define PITCHPIN                   2  //PIN 64 =  PIN A10
-  #define YAWPIN                     3  //PIN 65 =  PIN A11
-  #define AUX1PIN                    4  //PIN 66 =  PIN A12
-  #define AUX2PIN                    5  //PIN 67 =  PIN A13
+  #define THROTTLEPIN                4  //PIN 62 =  PIN A8
+  #define ROLLPIN                    5  //PIN 63 =  PIN A9
+  #define PITCHPIN                   3  //PIN 64 =  PIN A10
+  #define YAWPIN                     2  //PIN 65 =  PIN A11
+  #define AUX1PIN                    1  //PIN 66 =  PIN A12
+  #define AUX2PIN                    0  //PIN 67 =  PIN A13
   #define CAM1PIN                    6  //PIN 68 =  PIN A14
   #define CAM2PIN                    7  //PIN 69 =  PIN A15
   #define ISR_UART                   ISR(USART0_UDRE_vect)
@@ -801,9 +827,15 @@ void i2c_Mag_getADC() {
     rawADC_HMC5843[i]=i2c_readAck();}
   rawADC_HMC5843[5]= i2c_readNak();
 
-  magADC[ROLL]  =   ((rawADC_HMC5843[0]<<8) | rawADC_HMC5843[1]);
-  magADC[PITCH] =   ((rawADC_HMC5843[2]<<8) | rawADC_HMC5843[3]);
-  magADC[YAW]   = - ((rawADC_HMC5843[4]<<8) | rawADC_HMC5843[5]);
+//  magADC[ROLL]  =   ((rawADC_HMC5843[0]<<8) | rawADC_HMC5843[1]);
+//  magADC[PITCH] =   ((rawADC_HMC5843[2]<<8) | rawADC_HMC5843[3]);
+//  magADC[YAW]   = - ((rawADC_HMC5843[4]<<8) | rawADC_HMC5843[5]);
+  magADC[PITCH] = - ((rawADC_HMC5843[2]<<8) | rawADC_HMC5843[3]); // Y msb/lsb
+  magADC[ROLL]  = - ((rawADC_HMC5843[0]<<8) | rawADC_HMC5843[1]); // X msb/lsb
+  magADC[YAW]   = - ((rawADC_HMC5843[4]<<8) | rawADC_HMC5843[5]); // Z msb/lsb
+
+
+
 }
 #endif
 
@@ -960,16 +992,21 @@ uint8_t rawIMU(uint8_t withACC) { //if the WMP or NK are oriented differently, i
   #else
     i2c_WMP_getRawADC();
     if ( (rawADC_WMP[5]&0x02) == 0x02 && (rawADC_WMP[5]&0x01) == 0 ) {// motion plus data
-      gyroADC[ROLL]   = - ( ((rawADC_WMP[5]>>2)<<8) + rawADC_WMP[2] );
-      gyroADC[PITCH]  = - ( ((rawADC_WMP[4]>>2)<<8) + rawADC_WMP[1] );
+//      gyroADC[ROLL]   = - ( ((rawADC_WMP[5]>>2)<<8) + rawADC_WMP[2] );
+//      gyroADC[PITCH]  = - ( ((rawADC_WMP[4]>>2)<<8) + rawADC_WMP[1] );
+      gyroADC[ROLL]  = - ( ((rawADC_WMP[4]>>2)<<8) + rawADC_WMP[1] );
+      gyroADC[PITCH]   =  ( ((rawADC_WMP[5]>>2)<<8) + rawADC_WMP[2] );
+
       gyroADC[YAW]    = - ( ((rawADC_WMP[3]>>2)<<8) + rawADC_WMP[0] );
       return 1;
     } else if ( (rawADC_WMP[5]&0x02) == 0 && (rawADC_WMP[5]&0x01) == 0) { //nunchuk data
       #if defined(I2C_ACC) || defined(ADCACC)
         return 2;
       #else
-        accADC[ROLL]  =   ( (rawADC_WMP[3]<<2)        + ((rawADC_WMP[5]>>4)&0x2) );
-        accADC[PITCH] = - ( (rawADC_WMP[2]<<2)        + ((rawADC_WMP[5]>>3)&0x2) );
+//        accADC[ROLL]  =   ( (rawADC_WMP[3]<<2)        + ((rawADC_WMP[5]>>4)&0x2) );
+//        accADC[PITCH] = - ( (rawADC_WMP[2]<<2)        + ((rawADC_WMP[5]>>3)&0x2) );
+        accADC[ROLL] = - ( (rawADC_WMP[2]<<2)        + ((rawADC_WMP[5]>>3)&0x2) );
+        accADC[PITCH]  = - ( (rawADC_WMP[3]<<2)        + ((rawADC_WMP[5]>>4)&0x2) );
         accADC[YAW]   = - ( ((rawADC_WMP[4]&0xFE)<<2) + ((rawADC_WMP[5]>>5)&0x6) );
         return 0;
       #endif
@@ -1358,8 +1395,8 @@ ISR(TIMER0_COMPB_vect) { //the same with digital PIN 6 and OCR0B counter
 // ******************
 // rc functions
 // ******************
-#define MINCHECK 1100
-#define MAXCHECK 1900
+#define MINCHECK 1150
+#define MAXCHECK 1730
 
 volatile int16_t failsafeCnt = 0;
 
@@ -1462,7 +1499,7 @@ ISR(PCINT2_vect) { //this ISR is common to every receiver channel, it is call ev
       } else edgeTime[3] = cTime;
   #endif
   #if defined(FAILSAFE)
-    if (mask & 1<<THROTTLEPIN) {    // If pulse present on THROTTLE pin (independent from ardu version), clear FailSafe counter  - added by MIS
+    if (mask & 1<<THROTTLEPIN && rf == true) {    // If pulse present on THROTTLE pin (independent from ardu version), clear FailSafe counter  - added by MIS
       if(failsafeCnt > 20) failsafeCnt -= 20; else failsafeCnt = 0; }
   #endif
 }
@@ -1739,6 +1776,20 @@ void annexCode() { //this code is excetuted at each loop and won't interfere wit
   static uint8_t buzzerFreq;         //delay between buzzer ring
   uint8_t axis;
   uint8_t prop1,prop2;
+  
+  
+  
+//*********************************************************************************
+    rfdetect = analogRead(RF_DETPIN);
+  if (rfdetect < 200)
+   {
+     rf = false;
+     
+   }else
+   {
+     rf = true;
+   }
+//*********************************************************************************
 
   for(axis=0;axis<2;axis++) {
     //PITCH & ROLL dynamic PID adjustemnt, depending on stick deviation
@@ -1776,6 +1827,14 @@ void annexCode() { //this code is excetuted at each loop and won't interfere wit
       }
     }
   #endif
+//*************************************************************************************************
+   if (rf == false) LEDs.flashFaster();
+    else if (batVoltage < BAT_CRITICAL && rf == true) LEDs.flashFast();
+    else if (batVoltage < BAT_WARNING && rf == true) LEDs.flashSlow();
+    else {
+      LEDs.alwaysOn();
+     }
+//*************************************************************************************************
 
   if ( (currentTime > calibrateTime + 100000)  && ( (calibratingA>0 && (nunchukPresent == 1 || accPresent == 1)) || (calibratingG>0) ) ) {  // Calibration phasis
     LEDPIN_SWITCH
@@ -1805,7 +1864,24 @@ void annexCode() { //this code is excetuted at each loop and won't interfere wit
 
 
 void setup() {
+//*************************************************************************************************
+  pinMode(WIRELESS_TELEMETRY_J_PIN, INPUT);
+  digitalWrite(WIRELESS_TELEMETRY_J_PIN, HIGH); //turn on pullup resistor
+
+  if(digitalRead(WIRELESS_TELEMETRY_J_PIN) == LOW)  // jumper on
+  {
+    SERIAL_PORT = &Serial3; 
+  }else
+  {
+    SERIAL_PORT = &Serial;
+  }  
+//*************************************************************************************************
   Serial.begin(SERIAL_COM_SPEED);
+//*************************************************************************************************
+  LEDs.initialize(LED_PIN);
+  //LEDs.flashFast();
+  LEDs.alwaysOn();
+//*************************************************************************************************
   LEDPIN_PINMODE
   POWERPIN_PINMODE
   BUZZERPIN_PINMODE
@@ -1858,6 +1934,7 @@ void setup() {
 
 // ******** Main Loop *********
 void loop () {
+  LEDs.run(currentTime);
   static uint8_t rcDelayCommand; // this indicates the number of time (multiple of RC measurement at 50Hz) the sticks must be maintained to run or switch off motors
   uint8_t axis,i;
   int16_t error;
@@ -1903,20 +1980,20 @@ void loop () {
       errorAngleI[ROLL] = 0;
       errorAngleI[PITCH] = 0;
       rcDelayCommand++;
-      if ( (rcData[YAW] < MINCHECK || rcData[ROLL] < MINCHECK)  && armed == 1) {
-        if (rcDelayCommand == 20) { // rcDelayCommand = 20 => 20x20ms = 0.4s = time to wait for a specific RC command to be acknowledged
+      if ( (rcData[YAW] < MINCHECK /*|| rcData[ROLL] */< MINCHECK)  && armed == 1) {
+        if (rcDelayCommand == 8) { // rcDelayCommand = 20 => 20x20ms = 0.4s = time to wait for a specific RC command to be acknowledged
           armed = 0;
           writeAllMotors(MINCOMMAND);
         }
       } else if (rcData[YAW] < MINCHECK && rcData[PITCH] < MINCHECK && armed == 0) {
-        if (rcDelayCommand == 20) calibratingG=400;
-      } else if ( (rcData[YAW] > MAXCHECK || rcData[ROLL] > MAXCHECK) && rcData[PITCH] < MAXCHECK && armed == 0 && calibratingG == 0 && calibratedACC == 1) {
-        if (rcDelayCommand == 20) {
+        if (rcDelayCommand == 8) calibratingG=400;
+      } else if ( (rcData[YAW] > MAXCHECK /*|| rcData[ROLL]*/ > MAXCHECK) && rcData[PITCH] < MAXCHECK && armed == 0 && calibratingG == 0 && calibratedACC == 1) {
+        if (rcDelayCommand == 8) {
           armed = 1;
           writeAllMotors(MINTHROTTLE);
         }
       } else if (rcData[YAW] > MAXCHECK && rcData[PITCH] > MAXCHECK && armed == 0) {
-        if (rcDelayCommand == 20) {
+        if (rcDelayCommand == 8) {
           atomicServo[0] = 125;  //we center the yaw gyro in conf mode
           #if defined(LCD_CONF)
             configurationLoop(); //beginning LCD configuration
@@ -1928,7 +2005,7 @@ void loop () {
       }
     } else if (rcData[THROTTLE] > MAXCHECK && armed == 0) {
       if (rcData[YAW] < MINCHECK && rcData[PITCH] < MINCHECK) {
-        if (rcDelayCommand == 20) calibratingA=400;
+        if (rcDelayCommand == 8) calibratingA=400;
         rcDelayCommand++;
       } else if (rcData[PITCH] > MAXCHECK) {
          accZero[PITCH]++;writeParams();
@@ -2091,6 +2168,8 @@ void loop () {
     if (rcOptions & activateCamStab8 ) {
       servo[1] = constrain(TILT_PITCH_MIDDLE + TILT_PITCH_PROP * angle[PITCH] /16 , TILT_PITCH_MIN, TILT_PITCH_MAX);
       servo[2] = constrain(TILT_ROLL_MIDDLE  + TILT_ROLL_PROP  * angle[ROLL]  /16 , TILT_ROLL_MIN, TILT_ROLL_MAX);
+      //servo[1] = constrain(TILT_PITCH_MIDDLE + TILT_PITCH_PROP * angle[PITCH] /16 , TILT_PITCH_MIN, TILT_PITCH_MAX);
+      //servo[2] = constrain(TILT_ROLL_MIDDLE  + TILT_ROLL_PROP  * angle[ROLL]  /16 , TILT_ROLL_MIN, TILT_ROLL_MAX);
     } else {
       servo[1] = TILT_PITCH_MIDDLE;
       servo[2] = TILT_ROLL_MIDDLE;
@@ -2257,6 +2336,20 @@ void serialCom() {
       break;
     case 'D': //GUI to arduino calibration request
       calibratingA=400;
+      break;
+    case 'P':
+      Serial.println(cycleTime);
+      Serial.println(batVoltage);
+      Serial.println(batRaw);
+      Serial.println(int (armed));
+      Serial.println(rf);
+      break;
+    case 'o': //print angles
+      Serial.print(angle[PITCH]);
+      Serial.print(" ");
+      Serial.print(rcCommand[YAW]);
+      Serial.print(" ");
+      Serial.println(angle[ROLL]);
       break;
     }
   }
