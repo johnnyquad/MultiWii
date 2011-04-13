@@ -58,7 +58,7 @@ HardwareSerial* SERIAL_PORT;// = &Serial;
    If RC pulse coming back before reached FAILSAVE_OFF_DELAY time, after the small quard time the RC control is returned to normal.
    If you use serial sum PPM, the sum converter must completly turn off the PPM SUM pusles for this FailSafe functionality.*/
 #define FAILSAFE                                  // Alex: comment this line if you want to deactivate the failsafe function
-#define FAILSAVE_DELAY     10                     // Guard time for failsafe activation after signal lost. 1 step = 0.1sec - 1sec in example
+#define FAILSAVE_DELAY     2                     // Guard time for failsafe activation after signal lost. 1 step = 0.1sec - 1sec in example
 #define FAILSAVE_OFF_DELAY 200                    // Time for Landing before motors stop in 0.1sec. 1 step = 0.1sec - 20sec in example
 #define FAILSAVE_THR0TTLE  (1607) //+ 200)    // Throttle level used for landing - may be relative to MINTHROTTLE - as in this case
 
@@ -128,6 +128,9 @@ float batVoltage;
 String batString;
 int rfdetect;
 bool rf;
+
+int8_t softTrimROLL = 0;
+int8_t softTrimPITCH = 0;
 
 volatile int16_t failsafeCnt = 0; //********************************line1363
 
@@ -1580,6 +1583,10 @@ void readEEPROM() {
   activateAcc8 = EEPROM.read(p++);activateBaro8 = EEPROM.read(p++);activateMag8 = EEPROM.read(p++);
   activateCamStab8 = EEPROM.read(p++);activateCamTrig8 = EEPROM.read(p++);
   for(i=0;i<3;i++) accZero[i] = (EEPROM.read(p++)&0xff) + (EEPROM.read(p++)<<8);
+  softTrimROLL = EEPROM.read(p++);
+  softTrimPITCH = EEPROM.read(p++);
+  accZero[ROLL] = accZero[ROLL] + softTrimROLL;
+  accZero[PITCH] = accZero[PITCH] + softTrimPITCH;
   //note on the following lines: we do this calcul here because it's a static and redundant result and we don't want to load the critical loop whith it
   rcFactor1 = rcRate8/50.0*rcExpo8/100.0/250000.0;
   rcFactor2 = (100-rcExpo8)*rcRate8/5000.0;
@@ -1597,6 +1604,8 @@ void writeParams() {
   EEPROM.write(p++,activateAcc8);EEPROM.write(p++,activateBaro8);EEPROM.write(p++,activateMag8);
   EEPROM.write(p++,activateCamStab8);EEPROM.write(p++,activateCamTrig8);
   for(i=0;i<3;i++) {EEPROM.write(p++,accZero[i]);EEPROM.write(p++,accZero[i]>>8&0xff);}
+  EEPROM.write(p++,softTrimROLL);EEPROM.write(p++,softTrimPITCH);
+  //EEPROM.write(p++,0);EEPROM.write(p++,0);
   readEEPROM();
   blinkLED(15,20,1);
 }
@@ -2010,14 +2019,36 @@ void loop () {
       if (rcData[YAW] < MINCHECK && rcData[PITCH] < MINCHECK) {
         if (rcDelayCommand == 8) calibratingA=400;
         rcDelayCommand++;
-      } else if (rcData[PITCH] > MAXCHECK) {
-         accZero[PITCH]++;writeParams();
+      } else if (rcData[PITCH] > MAXCHECK) { // Soft trims for stable mode
+         //accZero[PITCH] -= softTrimPITCH;
+         accZero[PITCH] -= softTrimPITCH;
+         accZero[ROLL] -= softTrimROLL;
+         softTrimPITCH++;
+         //accZero[PITCH]++;
+         //accZero[PITCH]++;
+         writeParams();
       } else if (rcData[PITCH] < MINCHECK) {
-         accZero[PITCH]--;writeParams();
+         //accZero[PITCH] -= softTrimPITCH;
+         accZero[PITCH] -= softTrimPITCH;
+         accZero[ROLL] -= softTrimROLL;         
+         softTrimPITCH--;
+         //accZero[PITCH] = accZero[PITCH] + softTrimPITCH;
+         //accZero[PITCH]--;
+         writeParams();
       } else if (rcData[ROLL] > MAXCHECK) {
-         accZero[ROLL]++;writeParams();
+         accZero[PITCH] -= softTrimPITCH;
+         accZero[ROLL] -= softTrimROLL;        
+         softTrimROLL++;
+         //accZero[ROLL] = accZero[ROLL] + softTrimROLL;
+         //accZero[ROLL]++;
+         writeParams();
       } else if (rcData[ROLL] < MINCHECK) {
-         accZero[ROLL]--;writeParams();
+         accZero[PITCH] -= softTrimPITCH;
+         accZero[ROLL] -= softTrimROLL;        
+         softTrimROLL--;
+         //accZero[ROLL] = accZero[ROLL] + softTrimROLL;
+         //accZero[ROLL]--;
+         writeParams();
       } else {
         rcDelayCommand = 0;
       }
@@ -2352,7 +2383,15 @@ void serialCom() {
       Serial.print(" ");
       Serial.print(rcCommand[YAW]);
       Serial.print(" ");
-      Serial.println(angle[ROLL]);
+      Serial.print(angle[ROLL]);
+      Serial.print(" ");
+      Serial.print(accZero[ROLL]);
+      Serial.print(" ");
+      Serial.print(softTrimROLL);
+      Serial.print(" ");
+      Serial.print(accZero[PITCH]);
+      Serial.print(" ");
+      Serial.println(softTrimPITCH);
       break;
     }
   }
