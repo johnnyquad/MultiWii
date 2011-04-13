@@ -87,7 +87,7 @@ HardwareSerial* SERIAL_PORT;// = &Serial;
 //#define NUNCHACK  // if you want to use the nunckuk as a standalone I2C ACC without WMP
 
 /* I2C barometer */
-//#define BMP085
+#define BMP085
 
 /* I2C magnetometer */
 #define HMC5843
@@ -1807,6 +1807,9 @@ void annexCode() { //this code is excetuted at each loop and won't interfere wit
   dynP8[YAW] = P8[YAW]*prop1/100;
   dynD8[YAW] = D8[YAW]*prop1/100;
 
+  batRaw = analogRead(V_BATPIN); //***************************************************************************
+  batVoltage = (batRaw*BATTERY_MONITOR_SCALE_FACTOR); //my own version JDH ***********************************
+
   #if defined(VBAT)
     vbatRaw = (vbatRaw*15 + analogRead(V_BATPIN))>>4; // smoothing of vbat readings  
     vbat = vbatRaw * 16 / VBATSCALE;                  // result is Vbatt in 0.1V steps
@@ -1980,14 +1983,14 @@ void loop () {
       errorAngleI[ROLL] = 0;
       errorAngleI[PITCH] = 0;
       rcDelayCommand++;
-      if ( (rcData[YAW] < MINCHECK /*|| rcData[ROLL] */< MINCHECK)  && armed == 1) {
+      if ( (rcData[YAW] < MINCHECK /*|| rcData[ROLL] < MINCHECK*/)  && armed == 1) {
         if (rcDelayCommand == 8) { // rcDelayCommand = 20 => 20x20ms = 0.4s = time to wait for a specific RC command to be acknowledged
           armed = 0;
           writeAllMotors(MINCOMMAND);
         }
       } else if (rcData[YAW] < MINCHECK && rcData[PITCH] < MINCHECK && armed == 0) {
         if (rcDelayCommand == 8) calibratingG=400;
-      } else if ( (rcData[YAW] > MAXCHECK /*|| rcData[ROLL]*/ > MAXCHECK) && rcData[PITCH] < MAXCHECK && armed == 0 && calibratingG == 0 && calibratedACC == 1) {
+      } else if ( (rcData[YAW] > MAXCHECK /*|| rcData[ROLL] > MAXCHECK*/) && rcData[PITCH] < MAXCHECK && armed == 0 && calibratingG == 0 && calibratedACC == 1) {
         if (rcDelayCommand == 8) {
           armed = 1;
           writeAllMotors(MINTHROTTLE);
@@ -2063,7 +2066,7 @@ void loop () {
       int16_t dif = heading - magHold;
       if (dif <= - 180) dif += 360;
       if (dif >= + 180) dif -= 360;
-      rcCommand[YAW] -= dif;
+      rcCommand[YAW] -= dif*2;
       magTime = micros();
     } else {
       if (micros() - magTime > 1000 ) { //we add a small timing (1s) to reselect the new compass hold angle
