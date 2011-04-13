@@ -1398,7 +1398,7 @@ ISR(TIMER0_COMPB_vect) { //the same with digital PIN 6 and OCR0B counter
 #define MINCHECK 1150
 #define MAXCHECK 1730
 
-volatile int16_t failsafeCnt = 0;
+//volatile int16_t failsafeCnt = 0;
 
 static uint8_t pinRcChannel[8] = {ROLLPIN, PITCHPIN, YAWPIN, THROTTLEPIN, AUX1PIN,AUX2PIN,CAM1PIN,CAM2PIN};
 volatile uint16_t rcPinValue[8] = {1500,1500,1500,1500,1500,1500,1500,1500}; // interval [1000;2000]
