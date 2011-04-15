@@ -66,7 +66,7 @@ HardwareSerial* SERIAL_PORT;// = &Serial;
 /* The following lines apply only for a pitch/roll tilt stabilization system
    It is not compatible with Y6 or HEX6 or HEX6X
    Uncomment the first line to activate it */
-//#define SERVO_TILT
+#define SERVO_TILT
 #define TILT_PITCH_MIN    1020    //servo travel min, don't set it below 1020
 #define TILT_PITCH_MAX    2000    //servo travel max, max value=2000
 #define TILT_PITCH_MIDDLE 1200    //servo neutral value
@@ -134,7 +134,10 @@ int8_t softTrimPITCH = 0;
 
 volatile int16_t failsafeCnt = 0; //********************************line1363
 
-#define LED_PIN 22
+#define LED_PIN1 22
+#define LED_PIN2 23
+#define LED_PIN3 24
+#define LED_PIN4 25
 LEDs_FlashAll LEDs;
 
 
@@ -1032,6 +1035,7 @@ uint8_t updateIMU(uint8_t withACC) {
   } else {
     if (r == 1) { //gyro
       if (calibratingG>0) {
+        LEDs.flashFast();
         for (axis = 0; axis < 3; axis++) {
           if (calibratingG>1) {
             if (calibratingG == 400) g[axis]=0;
@@ -1064,6 +1068,7 @@ uint8_t updateIMU(uint8_t withACC) {
     }
     if (r == 0 || ( (accPresent == 1) && (withACC == 1) ) ) { //nunchuk or i2c ACC
       if (calibratingA>0) {
+        LEDs.flashFast();
         if (calibratingA>1) {
           for (uint8_t axis = 0; axis < 3; axis++) {
             if (calibratingA == 400) a[axis]=0;
@@ -1840,12 +1845,15 @@ void annexCode() { //this code is excetuted at each loop and won't interfere wit
     }
   #endif
 //*************************************************************************************************
+   if(!(calibratingA > 0 || calibratingG > 0))
+   {
    if (rf == false) LEDs.flashFaster();
     else if (batVoltage < BAT_CRITICAL && rf == true) LEDs.flashFast();
     else if (batVoltage < BAT_WARNING && rf == true) LEDs.flashSlow();
     else {
       LEDs.alwaysOn();
      }
+   }
 //*************************************************************************************************
 
   if ( (currentTime > calibrateTime + 100000)  && ( (calibratingA>0 && (nunchukPresent == 1 || accPresent == 1)) || (calibratingG>0) ) ) {  // Calibration phasis
@@ -1890,7 +1898,32 @@ void setup() {
 //*************************************************************************************************
   Serial.begin(SERIAL_COM_SPEED);
 //*************************************************************************************************
-  LEDs.initialize(LED_PIN);
+#define  LED_RUN_DELAY  70
+  for (int i=0;i<8;i++) {
+    pinMode(LED_PIN1, OUTPUT); //checking my new LED drivers
+    pinMode(LED_PIN2, OUTPUT);
+    pinMode(LED_PIN3, OUTPUT);
+    pinMode(LED_PIN4, OUTPUT);  
+    digitalWrite(LED_PIN1, HIGH);
+    delay(LED_RUN_DELAY);
+    digitalWrite(LED_PIN1, LOW);
+    digitalWrite(LED_PIN2, HIGH);
+    delay(LED_RUN_DELAY);  
+    digitalWrite(LED_PIN2, LOW);
+    digitalWrite(LED_PIN3, HIGH);
+    delay(LED_RUN_DELAY); 
+    digitalWrite(LED_PIN3, LOW);  
+    digitalWrite(LED_PIN4, HIGH);
+    delay(LED_RUN_DELAY);
+    digitalWrite(LED_PIN1, LOW);  
+    digitalWrite(LED_PIN2, LOW);
+    digitalWrite(LED_PIN3, LOW);
+    digitalWrite(LED_PIN4, LOW);  
+  }
+  
+  
+  
+  LEDs.initialize(LED_PIN1);
   //LEDs.flashFast();
   LEDs.alwaysOn();
 //*************************************************************************************************
@@ -2200,8 +2233,9 @@ void loop () {
   #endif
   #ifdef SERVO_TILT
     if (rcOptions & activateCamStab8 ) {
-      servo[1] = constrain(TILT_PITCH_MIDDLE + TILT_PITCH_PROP * angle[PITCH] /16 , TILT_PITCH_MIN, TILT_PITCH_MAX);
-      servo[2] = constrain(TILT_ROLL_MIDDLE  + TILT_ROLL_PROP  * angle[ROLL]  /16 , TILT_ROLL_MIN, TILT_ROLL_MAX);
+      servo[1] = constrain(TILT_PITCH_MIDDLE + TILT_PITCH_PROP * (angle[PITCH] /16 + angle[ROLL]  /16), TILT_PITCH_MIN, TILT_PITCH_MAX);
+      servo[2] = constrain(TILT_ROLL_MIDDLE  + TILT_ROLL_PROP  * (angle[PITCH] /16 - angle[ROLL]  /16), TILT_ROLL_MIN, TILT_ROLL_MAX);
+      //Serial.print(servo[1]);Serial.print(" "); Serial.println(servo[2]);
       //servo[1] = constrain(TILT_PITCH_MIDDLE + TILT_PITCH_PROP * angle[PITCH] /16 , TILT_PITCH_MIN, TILT_PITCH_MAX);
       //servo[2] = constrain(TILT_ROLL_MIDDLE  + TILT_ROLL_PROP  * angle[ROLL]  /16 , TILT_ROLL_MIN, TILT_ROLL_MAX);
     } else {
