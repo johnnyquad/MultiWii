@@ -1,4 +1,4 @@
-/* JDH mods 13 04 2011
+/* JDH mods 16 04 2011
 MultiWiiCopter by Alexandre Dubus
 www.multiwii.com
 April  2011     V1.7
@@ -38,14 +38,14 @@ HardwareSerial* SERIAL_PORT;// = &Serial;
 #define YAW_DIRECTION 1 // if you want to reverse the yaw correction direction
 //#define YAW_DIRECTION -1
 
-#define I2C_SPEED 100000L     //100kHz normal mode, this value must be used for a genuine WMP
-//#define I2C_SPEED 400000L   //400kHz fast mode, it works only with some WMP clones
+//#define I2C_SPEED 100000L     //100kHz normal mode, this value must be used for a genuine WMP
+#define I2C_SPEED 400000L   //400kHz fast mode, it works only with some WMP clones
 
 //#define PROMINI  //Arduino type
 #define MEGA
 
 //enable internal I2C pull ups
-#define INTERNAL_I2C_PULLUPS
+//#define INTERNAL_I2C_PULLUPS
 
 //****** advanced users settings   *************
 
@@ -69,11 +69,11 @@ HardwareSerial* SERIAL_PORT;// = &Serial;
 #define SERVO_TILT
 #define TILT_PITCH_MIN    1020    //servo travel min, don't set it below 1020
 #define TILT_PITCH_MAX    2000    //servo travel max, max value=2000
-#define TILT_PITCH_MIDDLE 1200    //servo neutral value
+#define TILT_PITCH_MIDDLE 1500    //servo neutral value
 #define TILT_PITCH_PROP   10      //servo proportional (tied to angle) ; can be negative to invert movement
 #define TILT_ROLL_MIN     1020
 #define TILT_ROLL_MAX     2000
-#define TILT_ROLL_MIDDLE  1600
+#define TILT_ROLL_MIDDLE  1500
 #define TILT_ROLL_PROP    10
 
 /* I2C gyroscope */
@@ -90,7 +90,7 @@ HardwareSerial* SERIAL_PORT;// = &Serial;
 #define BMP085
 
 /* I2C magnetometer */
-#define HMC5843
+//#define HMC5843
 //#define HMC5883
 
 /* ADC accelerometer */ // for 5DOF from sparkfun, uses analog PIN A1/A2/A3
@@ -281,9 +281,9 @@ LEDs_FlashAll LEDs;
   #define DIGITAL_CAM_HIGH           PORTF |= 1<<2;
   #define DIGITAL_CAM_LOW            PORTF &= ~(1<<2);
   //RX PIN assignment inside the port //for PORTK
-  #define THROTTLEPIN                4  //PIN 62 =  PIN A8
+  #define THROTTLEPIN                3  //PIN 62 =  PIN A8
   #define ROLLPIN                    5  //PIN 63 =  PIN A9
-  #define PITCHPIN                   3  //PIN 64 =  PIN A10
+  #define PITCHPIN                   4  //PIN 64 =  PIN A10
   #define YAWPIN                     2  //PIN 65 =  PIN A11
   #define AUX1PIN                    1  //PIN 66 =  PIN A12
   #define AUX2PIN                    0  //PIN 67 =  PIN A13
@@ -2233,8 +2233,8 @@ void loop () {
   #endif
   #ifdef SERVO_TILT
     if (rcOptions & activateCamStab8 ) {
-      servo[1] = constrain(TILT_PITCH_MIDDLE + TILT_PITCH_PROP * (angle[PITCH] /16 + angle[ROLL]  /16), TILT_PITCH_MIN, TILT_PITCH_MAX);
-      servo[2] = constrain(TILT_ROLL_MIDDLE  + TILT_ROLL_PROP  * (angle[PITCH] /16 - angle[ROLL]  /16), TILT_ROLL_MIN, TILT_ROLL_MAX);
+      servo[1] = constrain(TILT_PITCH_MIDDLE + TILT_PITCH_PROP * (angle[PITCH] /16 - angle[ROLL]  /16), TILT_PITCH_MIN, TILT_PITCH_MAX);
+      servo[2] = constrain(TILT_ROLL_MIDDLE  + TILT_ROLL_PROP  * (angle[PITCH] /16 + angle[ROLL]  /16), TILT_ROLL_MIN, TILT_ROLL_MAX);
       //Serial.print(servo[1]);Serial.print(" "); Serial.println(servo[2]);
       //servo[1] = constrain(TILT_PITCH_MIDDLE + TILT_PITCH_PROP * angle[PITCH] /16 , TILT_PITCH_MIN, TILT_PITCH_MAX);
       //servo[2] = constrain(TILT_ROLL_MIDDLE  + TILT_ROLL_PROP  * angle[ROLL]  /16 , TILT_ROLL_MIN, TILT_ROLL_MAX);
