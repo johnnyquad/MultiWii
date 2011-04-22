@@ -14,7 +14,7 @@ public:
     on = false;
   }
 
-  virtual void initialize(int);
+  virtual void initialize(int *ledPins, int count);
   virtual void run(unsigned long currentTime);
   
   bool canRun(unsigned long currentTime)
@@ -35,36 +35,45 @@ public:
 // *************************************************************************
 class LEDs_FlashAll : LEDs{
 private:
-  int pin;
+  int *pin;
+  int numOfPins;
   bool state;
   bool flash;
 
 public:
   LEDs_FlashAll() : LEDs(){}
 
-  void initialize(int ledPin)
+  void initialize(int *ledPins, int count)
   {
-    pin = ledPin;
+    numOfPins = count;
+    pin = (int *)malloc(count * sizeof(int));
+    
     state = false;
     flash = false;
-    
-    pinMode(pin, OUTPUT);
-    digitalWrite(pin, HIGH); //turn on the LEDs
+    for(int i = 0; i < numOfPins; i++)
+    {
+      pin[i] = ledPins[i];
+      pinMode(pin[i], OUTPUT);
+      digitalWrite(pin[i], HIGH); //turn on the LEDs
+    }
   }
   
   void run(unsigned long currentTime)
   {
     if(canRun(currentTime))
     {
-      //Serial.println("Running");
       if(flash)
       {
         state = !state;
-        digitalWrite(pin, state);
+        for(int i = 0; i < numOfPins; i++)
+        {
+          digitalWrite(pin[i], state);
+        }
       }else if(!state)
       {
         //Serial.println("Turning ON");
-        digitalWrite(pin, HIGH);
+        for(int i = 0; i < numOfPins; i++)
+          digitalWrite(pin[i], HIGH);
         state = true;
       }
     }
@@ -74,7 +83,8 @@ public:
   {
      on = false;
      state = false;
-     digitalWrite(pin, LOW);
+     for(int i = 0; i < numOfPins; i++)
+       digitalWrite(pin[i], LOW);
   }
 
   void alwaysOn()
@@ -98,7 +108,7 @@ public:
     flashTime = 100000; 
   }
   
-    void flashFaster()
+  void flashFaster()
   {
     on = true;
     flash = true;

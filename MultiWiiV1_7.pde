@@ -119,7 +119,7 @@ HardwareSerial* SERIAL_PORT;// = &Serial;
 #define VBATLEVEL3_3S 99  // 9.9V
 //*****************************************************************************************
 //MyStuff
-#define BATTERY_MONITOR_SCALE_FACTOR 0.012112382934443288241415192507804//0.012505010020 //+ use "P" to get batRaw a>d value then measure battery with DVM and do DVM/batRaw to get scale factor
+#define BATTERY_MONITOR_SCALE_FACTOR 0.012662116040955631399317406143345//0.012505010020 //+ use "P" to get batRaw a>d value then measure battery with DVM and do DVM/batRaw to get scale factor
 #define BAT_GOOD 10.8
 #define BAT_WARNING 10.6
 #define BAT_CRITICAL 10.4
@@ -134,10 +134,8 @@ int8_t softTrimPITCH = 0;
 
 volatile int16_t failsafeCnt = 0; //********************************line1363
 
-#define LED_PIN1 22
-#define LED_PIN2 23
-#define LED_PIN3 24
-#define LED_PIN4 25
+
+#define LED_PINS {22, 23, 24, 25}
 LEDs_FlashAll LEDs;
 
 
@@ -1899,7 +1897,7 @@ void setup() {
   Serial.begin(SERIAL_COM_SPEED);
 //*************************************************************************************************
 #define  LED_RUN_DELAY  70
-  for (int i=0;i<8;i++) {
+  /*for (int i=0;i<8;i++) {
     pinMode(LED_PIN1, OUTPUT); //checking my new LED drivers
     pinMode(LED_PIN2, OUTPUT);
     pinMode(LED_PIN3, OUTPUT);
@@ -1920,10 +1918,11 @@ void setup() {
     digitalWrite(LED_PIN3, LOW);
     digitalWrite(LED_PIN4, LOW);  
   }
+  */
   
-  
-  
-  LEDs.initialize(LED_PIN1);
+  //Compiler wont let me put {1, 2, 3} in as a param so copy it to a local array and work out how many led's we have at runtime
+  int arr_leds[] = LED_PINS;
+  LEDs.initialize(arr_leds, sizeof(arr_leds) / sizeof(int));
   //LEDs.flashFast();
   LEDs.alwaysOn();
 //*************************************************************************************************
@@ -2407,6 +2406,7 @@ void serialCom() {
       break;
     case 'P':
       Serial.println(cycleTime);
+      Serial.println(BATTERY_MONITOR_SCALE_FACTOR);
       Serial.println(batVoltage);
       Serial.println(batRaw);
       Serial.println(int (armed));
